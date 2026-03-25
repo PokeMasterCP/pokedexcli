@@ -15,7 +15,7 @@ func cleanInput(text string) []string {
 		if w == "" {
 			continue
 		}
-		word := strings.ToLower(string(w))
+		word := strings.ToLower(w)
 		cleanOutput = append(cleanOutput, word)
 	}
 	return cleanOutput
@@ -24,6 +24,7 @@ func cleanInput(text string) []string {
 func StartRepl() {
 	scanner := bufio.NewScanner(os.Stdin)
 	commands := getCommands()
+	config := initCommands()
 
 	for {
 		fmt.Print("Pokedex >")
@@ -35,31 +36,13 @@ func StartRepl() {
 
 		cmdName := input[0]
 		if cmd, ok := commands[cmdName]; ok {
-			cmd.callback()
+			err := cmd.callback(&config)
+			if err != nil {
+				fmt.Println(err)
+			}
 		} else {
 			fmt.Println("unknown command")
 		}
 
-	}
-}
-
-type cliCmd struct {
-	name        string
-	description string
-	callback    func() error
-}
-
-func getCommands() map[string]cliCmd {
-	return map[string]cliCmd{
-		"exit": {
-			name:        "exit",
-			description: "Exit the Pokedex",
-			callback:    commandExit,
-		},
-		"help": {
-			name:        "help",
-			description: "Display a help message",
-			callback:    commandHelp,
-		},
 	}
 }
