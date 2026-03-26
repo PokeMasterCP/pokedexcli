@@ -23,7 +23,7 @@ func initCommands() config {
 type cliCmd struct {
 	name        string
 	description string
-	callback    func(c *config) error
+	callback    func(c *config, param string) error
 }
 
 func getCommands() map[string]cliCmd {
@@ -48,16 +48,21 @@ func getCommands() map[string]cliCmd {
 			description: "Print previous page of maps",
 			callback:    commandMapb,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Explore an area's Pokemon",
+			callback:    commandExplore,
+		},
 	}
 }
 
-func commandExit(c *config) error {
+func commandExit(c *config, param string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp(c *config) error {
+func commandHelp(c *config, param string) error {
 	commands := getCommands()
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
@@ -68,7 +73,7 @@ func commandHelp(c *config) error {
 	return nil
 }
 
-func commandMap(c *config) error {
+func commandMap(c *config, param string) error {
 	if c.next == nil {
 		fmt.Println("you're on the last page")
 		return nil
@@ -89,7 +94,7 @@ func commandMap(c *config) error {
 	return nil
 }
 
-func commandMapb(c *config) error {
+func commandMapb(c *config, param string) error {
 	if c.prev == nil {
 		fmt.Println("you're on the first page")
 		return nil
@@ -107,5 +112,18 @@ func commandMapb(c *config) error {
 
 	c.next = areas.Next
 	c.prev = areas.Previous
+	return nil
+}
+
+func commandExplore(c *config, param string) error {
+	locationPokemon, err := pokeapi.GetLocationPokemon(param)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Exploring %v...\nFound Pokemon:\n", param)
+	for _, entry := range locationPokemon.PokemonEncounters {
+		fmt.Printf("- %v\n", entry.Pokemon.Name)
+	}
+
 	return nil
 }

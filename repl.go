@@ -30,13 +30,16 @@ func StartRepl() {
 		fmt.Print("Pokedex >")
 		scanner.Scan()
 		input := cleanInput(scanner.Text())
+		var param string
 		if len(input) == 0 {
 			continue
+		} else if len(input) > 1 {
+			param = input[1]
 		}
 
 		cmdName := input[0]
 		if cmd, ok := commands[cmdName]; ok {
-			err := cmd.callback(&config)
+			err := cmd.callback(&config, param)
 			if err != nil {
 				fmt.Println(err)
 			}
