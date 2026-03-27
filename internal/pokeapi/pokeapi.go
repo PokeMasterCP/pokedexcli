@@ -66,12 +66,16 @@ type LocationEncounters struct {
 func GetLocationPokemon(area string) (LocationEncounters, error) {
 	url := "https://pokeapi.co/api/v2/location-area/" + area
 	var locationPokemon LocationEncounters
+	const unknownPokemonError = "unknown pokemon, try another name"
 
-	jsonData, cacheHit := cache.Get(url)
+	jsonData, cacheHit := cache.Get(area)
 	if cacheHit {
+		if string(jsonData) == unknownPokemonError {
+			return locationPokemon, fmt.Errorf(unknownPokemonError)
+		}
 		err := json.Unmarshal(jsonData, &locationPokemon)
 		if err != nil {
-			cache.Delete(url)
+			cache.Delete(area)
 		} else {
 			return locationPokemon, nil
 		}
@@ -84,17 +88,88 @@ func GetLocationPokemon(area string) (LocationEncounters, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		cache.Add(area, []byte("unknown pokemon"))
-		return locationPokemon, fmt.Errorf("unknown pokemon")
+		cache.Add(area, []byte(unknownPokemonError))
+		return locationPokemon, fmt.Errorf(unknownPokemonError)
+	} else if resp.StatusCode > 299 {
+		return locationPokemon, fmt.Errorf("pokeapi responded with %d", resp.StatusCode)
 	}
 
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&locationPokemon)
 	if err != nil {
+		return locationPokemon, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	jsonData, err = json.Marshal(locationPokemon)
+	if err != nil {
 		// Failed to marshal JSON data, skipping adding to cache
 	} else {
 		cache.Add(area, jsonData)
 	}
-
 	return locationPokemon, nil
+}
+
+type Pokemon struct {
+	Name           string `json:"name"`
+	BaseExperience int    `json:"base_experience"`
+	Height         int    `json:"height"`
+	Weight         int    `json:"weight"`
+	Stats          []struct {
+		BaseStat int `json:"base_stat"`
+		Stat     struct {
+			Name string `json:"name"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Type struct {
+			Name string `json:"name"`
+		} `json:"type"`
+	} `json:"types"`
+}
+
+func GetPokemonData(name string) (Pokemon, error) {
+	url := "https://pokeapi.co/api/v2/pokemon/" + name
+	var pokemonData Pokemon
+	const unknownPokemonError = "unknown pokemon, try another name"
+
+	jsonData, cacheHit := cache.Get(name)
+	if cacheHit {
+		if string(jsonData) == unknownPokemonError {
+			return pokemonData, fmt.Errorf(unknownPokemonError)
+		}
+		err := json.Unmarshal(jsonData, &pokemonData)
+		if err != nil {
+			cache.Delete(name)
+		} else {
+			return pokemonData, nil
+		}
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return pokemonData, fmt.Errorf("failed to query PokeAPI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		cache.Add(name, []byte(unknownPokemonError))
+		return pokemonData, fmt.Errorf(unknownPokemonError)
+	} else if resp.StatusCode > 299 {
+		return pokemonData, fmt.Errorf("pokeapi responded with %d", resp.StatusCode)
+	}
+
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&pokemonData)
+	if err != nil {
+		return pokemonData, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	jsonData, err = json.Marshal(pokemonData)
+	if err != nil {
+		// Failed to marshal JSON data, skipping adding to cache
+	} else {
+		cache.Add(name, jsonData)
+	}
+	return pokemonData, nil
+
 }
