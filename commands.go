@@ -216,7 +216,7 @@ func commandPokedex(c *config, param string) error {
 	}
 
 	fmt.Println("Your Pokedex:")
-	for key, _ := range c.pokedex {
+	for key := range c.pokedex {
 		fmt.Printf("  -%s\n", key)
 	}
 
