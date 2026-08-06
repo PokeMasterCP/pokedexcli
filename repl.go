@@ -28,7 +28,13 @@ func StartRepl() {
 
 	for {
 		fmt.Print("Pokedex >")
-		scanner.Scan()
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintln(os.Stderr, "error reading input:", err)
+			}
+			fmt.Println()
+			return
+		}
 		input := cleanInput(scanner.Text())
 		var param string
 		if len(input) == 0 {

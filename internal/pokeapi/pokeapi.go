@@ -1,7 +1,9 @@
 package pokeapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,6 +12,12 @@ import (
 )
 
 var cache = pokecache.NewCache(time.Second * 5)
+
+// ErrNotFound is returned when PokeAPI has no such location or Pokemon.
+var ErrNotFound = errors.New("not found in pokeapi")
+
+// Not valid JSON, so a cached 404 can't be mistaken for a response body.
+var notFoundSentinel = []byte("\x00pokeapi:404")
 
 type LocationArea struct {
 	Count    int     `json:"count"`
@@ -109,10 +117,9 @@ func queryPokeAPI[T any](url string, val *T) error {
 	}
 	defer resp.Body.Close()
 
-	const notFound = "not found in pokeapi"
 	if resp.StatusCode == 404 {
-		cache.Add(url, []byte(notFound))
-		return fmt.Errorf(notFound)
+		cache.Add(url, notFoundSentinel)
+		return ErrNotFound
 	} else if resp.StatusCode > 299 {
 		return fmt.Errorf("pokeapi responded with %d", resp.StatusCode)
 	}
@@ -136,6 +143,9 @@ func queryPokeAPI[T any](url string, val *T) error {
 func cacheCheck[T any](url string, val *T) (bool, error) {
 	jsonData, cacheHit := cache.Get(url)
 	if cacheHit {
+		if bytes.Equal(jsonData, notFoundSentinel) {
+			return false, ErrNotFound
+		}
 		err := json.Unmarshal(jsonData, val)
 		if err != nil {
 			cache.Delete(url)
